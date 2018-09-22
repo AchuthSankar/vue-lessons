@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <style>
+        .exam {
+            display: block;
+            border: solid gray;
+            min-height: 100px;
+            margin: 10px 0px 10px 0px;
+        }
+
+        .exam>.exam-header {
+            border-bottom: gray solid;
+            min-height: 30px;
+            display: grid;
+        }
+
+        .exam>.exam-body {
+            min-height: 70px;
+        }
+
+        .exam>.exam-body>.event {
+            width: 100%;
+            min-height: 70px;
+            display: grid;
+        }
+
+        .exam>.exam-body>.event:not(:last-child) {
+            border-bottom: solid grey;
+        }
+
+        .exam>.exam-body>.event>.cell:not(:last-child) {
+            border-right: solid grey;
+            box-sizing: border-box;
+            padding: 5px;
+        }
+
+        .exam>.exam-body>.event>.col4 {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-evenly;
+        }
+
+        .header {
+            padding: 5px;
+            background: black;
+            color: white;
+        }
+
+        .header:not(:last-child) {
+            border-right: solid gray;
+        }
+
+        .event-normal {
+            background: white;
+        }
+
+        .event-exam {
+            background: lightgreen;
+        }
+
+        .event-error {
+            background: lightcoral;
+        }
+
+        .attributes-cell {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: start;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="exam"></div>
+    <script>
+        class DataTable {
+
+            static get tableTemplate() {
+                return `
+                    <div class="exam">
+                        <div class='exam-header'></div>
+                        <div class="exam-body"></div>
+                    </div>
+                `
+            }
+
+            static get rowTemplate() {
+                return `
+                <div class="event">
+                </div>
+                `
+            }
+
+            constructor(parentNode, headers) {
+
+                this.rows = []
+
+                this.tableNode = new DOMParser().parseFromString(this.constructor.tableTemplate, 'text/html').body.firstElementChild
+                this.rowtemplateNode = new DOMParser().parseFromString(this.constructor.rowTemplate, 'text/html').body
+                    .firstElementChild
+
+                let grid_template_column = headers.reduce((s, h) => s + " 1fr", '')
+                let headerHolder = this.tableNode.querySelector('.exam-header')
+                headerHolder.style['grid-template-columns'] = grid_template_column
+                this.rowtemplateNode.style['grid-template-columns'] = grid_template_column
+                headers.forEach((header) => {
+
+                    let headerCell = document.createElement('span')
+                    headerCell.classList.add('cell')
+                    headerCell.classList.add('header')
+                    headerCell.innerHTML = header
+                    headerCell.onclick = (e) => {
+                        if(e.target.dataset.sorting==true) {
+                            return
+                        }
+                        e.target.dataset.sorting=true
+                        let compareKey=e.target.innerHTML
+                        console.log(`sorting ${compareKey}`)
+                        let checkData=this.rows[0].col[compareKey]
+                        if(typeof(checkData)=='string') {
+                            console.log("Is string")
+                            this.rows.sort((a, b) => {
+                                return a.col[compareKey].localeCompare(b.col[compareKey])
+                            })
+                        } else if(checkData instanceof Date) {
+                            console.log("Is date")
+                            this.rows.sort((a, b) => {
+                                return a.col[compareKey].getTime()<b.col[compareKey].getTime()
+                            })
+                        } else {
+                            console.log("else")
+                            this.rows.sort((a, b) => {
+                                return a.col[compareKey]<b.col[compareKey]
+                            })
+                        }
+                        this.clearTable()
+                        this.rows.forEach(row => this.addRow(row.event_name, row.col))
+                        console.log('sorted')
+                        e.target.dataset.sorting=false
+                    }
+                    headerHolder.appendChild(headerCell)
+
+                    let contentCell = document.createElement('span')
+                    contentCell.classList.add('cell')
+                    contentCell.classList.add(header)
+                    contentCell.innerHTML = ''
+                    this.rowtemplateNode.appendChild(contentCell)
+
+                })
+
+                this.parentNode = parentNode
+                this.parentNode.appendChild(this.tableNode)
+
+            }
+
+            renderArray(attributes) {
+                let attributesNode = document.createElement('span')
+                attributesNode.classList.add('attributes-cell');
+                attributes.forEach(attribute => {
+                    let attributeNode = document.createElement('span')
+                    attributeNode.style.padding = '0px 10px 0px 10px'
+                    attributeNode.innerHTML = attribute
+                    attributesNode.appendChild(attributeNode)
+                })
+                return attributesNode
+            }
+
+            clearTable() {
+                this.tableNode.querySelector('.exam-body').innerHTML = ''
+            }
+
+            addRow(event_name, col) {
+                this.rows.push({
+                    event_name,
+                    col
+                })
+                let rowNode = this.rowtemplateNode.cloneNode(true)
+                rowNode.classList.add(`event-${event_name}`)
+                Object.keys(col).forEach(key => {
+                    let cellNode = rowNode.querySelector(`.${key}`)
+                    if (cellNode) {
+                        if (Array.isArray(col[key]))
+                            cellNode.appendChild(this.renderArray(col[key]))
+                        else
+                            cellNode.innerHTML = col[key]
+                    }
+                })
+                this.tableNode.querySelector('.exam-body').appendChild(rowNode)
+            }
+        }
+
+
+        let parentNode = document.querySelector("#exam")
+        let dt = new DataTable(parentNode, ['Type', 'Date', 'Summary', 'Data'])
+    </script>
+</body>
+
+</html>
